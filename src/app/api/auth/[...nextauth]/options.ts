@@ -10,35 +10,34 @@ export const authOptions: NextAuthOptions = {
       id: "credentials",
       name: "Credentials",
       credentials: {
-        email: { label: "Username", type: "text", placeholder: "Muhammad Ali" },
+        username: {
+          label: "Username",
+          type: "text",
+          placeholder: "Muhammad Ali"
+        },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials: any, req:any): Promise<any> {
+      async authorize(credentials: any, req: any): Promise<any> {
         await dbConnect();
-        if (
-        !credentials ||
-        !credentials.identifier ||
-        (!credentials.identifier.email && !credentials.identifier.username) ||
-        !credentials.password
-        ) 
-        {
+
+        const identifier = credentials?.username;
+        const password = credentials?.password;
+        if (!identifier || !password) {
           throw new Error("Missing credentials. Please enter all fields.");
         }
+
         try {
           const user = await userModel.findOne({
-            $or: [
-              { email: credentials.identifier.email },
-              {
-                username: credentials.identifier.username
-              }
-            ]
+            $or: [{ email: identifier }, { username: identifier }]
           });
+
           if (!user)
             throw new Error("No user found with this email or username.");
           if (!user.isVerified)
             throw new Error("Please verify your account before Login.");
+
           const isPasswordCorrect = await bcrypt.compare(
-            credentials.password,
+            password,
             user.password
           );
           if (isPasswordCorrect) return user;
@@ -47,18 +46,19 @@ export const authOptions: NextAuthOptions = {
               "Incorrect password. Please enter the correct one to continue"
             );
         } catch (error) {
-              console.log(error)
+          if (error instanceof Error) throw error;
+          throw new Error("Sign in failed. Please try again.");
         }
       }
     })
   ],
   callbacks: {
     async session({ session, token }) {
-      if(token){
-        session.user._id = token._id
-        session.user.isVerified = token.isVerified
-        session.user.isAcceptingMessage = token.isAcceptingMessage
-        session.user.username = token.username
+      if (token) {
+        session.user._id = token._id;
+        session.user.isVerified = token.isVerified;
+        session.user.isAcceptingMessage = token.isAcceptingMessage;
+        session.user.username = token.username;
       }
       return session;
     },
@@ -66,8 +66,8 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token._id = user._id?.toString();
         token.isVerified = user.isVerified;
-        token.isAcceptingMessage = user.isAcceptingMessage
-        token.username= user.username
+        token.isAcceptingMessage = user.isAcceptingMessage;
+        token.username = user.username;
       }
       return token;
     }
